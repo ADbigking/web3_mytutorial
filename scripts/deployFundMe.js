@@ -20,15 +20,20 @@ async function main() {
       console.log("veriry is skipped");
     }
     const [firstAccount, secondAccount] = await ethers.getSigners();
+    //one
     const fundTx = await fundme.fund({ value: ethers.parseEther("0.5") });
     await fundTx.wait();
     const balanceofcontract = await ethers.provider.getBalance(fundme.target);
     console.log(balanceofcontract);
+    //two
     const fundtxwithsecondacconut = await fundme.connect(secondAccount).fund({
       value: ethers.parseEther("0.5"),
     });
-    console.log(balanceofcontract);
     await fundtxwithsecondacconut.wait();
+    const balanceofcontractsecond = await ethers.provider.getBalance(
+      fundme.target,
+    );
+    console.log(balanceofcontractsecond);
     const firstAccountbalanceinfundme = await fundme.FundersToAmount(
       firstAccount.address,
     );
