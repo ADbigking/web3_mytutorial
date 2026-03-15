@@ -1,0 +1,39 @@
+{
+  "language": "Solidity",
+  "sources": {
+    "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol": {
+      "content": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.0;\n\ninterface AggregatorV3Interface {\n  function decimals() external view returns (uint8);\n\n  function description() external view returns (string memory);\n\n  function version() external view returns (uint256);\n\n  function getRoundData(\n    uint80 _roundId\n  ) external view returns (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound);\n\n  function latestRoundData()\n    external\n    view\n    returns (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound);\n}\n"
+    },
+    "contracts/FoundMe.sol": {
+      "content": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.20;\nimport {AggregatorV3Interface} from \"@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol\";\n\ncontract FundMe{\n    mapping (address=>uint256) public FundersToAmount;\n    uint256 MINIMUVALUE=100*10**18;\n    uint256 constant TARGET =1000*10**18;\n    address public owner;\n    uint256 locktime;\n    uint256 deploymentTimestamp;\n    address ERC20Addr;\n    bool public getFundSuccess=false;\n    //后期要加入 receive() ，让metamask直接能转入。\n    function fund()external payable {\n        require(MINIMUVALUE<=convertETHtoUsd(msg.value),\"send more ETH\");\n        require(block.timestamp<deploymentTimestamp+locktime,\"window is not closed\");\n        FundersToAmount[msg.sender]+=msg.value;\n    }\n      AggregatorV3Interface public dataFeed;\n      constructor(uint256 _locktime ,address dataFeedaddr) {\n        //sepolia sestnet\n    dataFeed = AggregatorV3Interface(dataFeedaddr);\n    owner=msg.sender;\n    deploymentTimestamp=block.timestamp;\n    locktime=_locktime;\n  }\n      function getChainlinkDataFeedLatestAnswer() public view returns (int256) {\n    // prettier-ignore  \n    (\n      /* uint80 roundId */\n      ,\n      int256 answer, \n      /*uint256 startedAt*/\n      ,\n      /*uint256 updatedAt*/ \n      ,\n      /*uint80 answeredInRound*/\n    ) = dataFeed.latestRoundData();\n    return answer;\n  }\n  function convertETHtoUsd(uint256 ethamount)internal view returns(uint256) {\n    uint256 ethprice=uint256(getChainlinkDataFeedLatestAnswer()); \n    return ethamount *ethprice/(10**8);\n  }\n  function transferOwnership(address newOwner)public onlyowner{\n    require(newOwner!=address(0),\"zero address\");\n    owner=newOwner;\n  }\n  function getFund() external onlyowner windowclsed {\n    require(convertETHtoUsd(address(this).balance)>=TARGET,\"target is not reached\");\n    uint256 amount=address(this).balance;\n    //payable(msg.sender).transfer(address(this).balance);\n    (bool success,)=payable(msg.sender).call{value:amount}(\"\");\n    require(success,\"reansfer tx failed\");\n    getFundSuccess=true;\n  }\n    function reFund() external windowclsed{\n        require(FundersToAmount[msg.sender]!=0,\"there is no fund for you\");\n        require(convertETHtoUsd(address(this).balance)<TARGET,\"target is not reached\");\n        uint256 refunAmount=FundersToAmount[msg.sender];\n        FundersToAmount[msg.sender]=0;\n        (bool success,)=payable(msg.sender).call{value:refunAmount}(\"\");\n        require(success,\"transfer th failed\");\n    }\n    function setFunderToamount(address funder,uint256 _amountupdata)external {\n        require(msg.sender==ERC20Addr,\"you do have permisstion to call this function\");\n        FundersToAmount[funder]=_amountupdata;\n    }\n    function setERC20Addr(address _erc20addr)public onlyowner {\n        ERC20Addr=_erc20addr;\n    }\n    modifier onlyowner(){\n        require(msg.sender==owner,\"is not owner\");\n        _;\n    }\n    modifier windowclsed(){\n        require(block.timestamp>=deploymentTimestamp+locktime,\"window is not closed\");\n        _;\n    }\n}"
+    }
+  },
+  "settings": {
+    "evmVersion": "paris",
+    "optimizer": {
+      "enabled": false,
+      "runs": 200
+    },
+    "outputSelection": {
+      "*": {
+        "*": [
+          "abi",
+          "evm.bytecode",
+          "evm.deployedBytecode",
+          "evm.methodIdentifiers",
+          "metadata",
+          "devdoc",
+          "userdoc",
+          "storageLayout",
+          "evm.gasEstimates"
+        ],
+        "": [
+          "ast"
+        ]
+      }
+    },
+    "metadata": {
+      "useLiteralContent": true
+    }
+  }
+}

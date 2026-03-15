@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
-import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
+import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 
 contract FundMe{
     mapping (address=>uint256) public FundersToAmount;
@@ -10,6 +10,8 @@ contract FundMe{
     uint256 locktime;
     uint256 deploymentTimestamp;
     address ERC20Addr;
+    event FundWithdrawByOwner(uint256);
+    event reFundByfunder(address,uint256);
     bool public getFundSuccess=false;
     //后期要加入 receive() ，让metamask直接能转入。
     function fund()external payable {
@@ -17,10 +19,10 @@ contract FundMe{
         require(block.timestamp<deploymentTimestamp+locktime,"window is not closed");
         FundersToAmount[msg.sender]+=msg.value;
     }
-      AggregatorV3Interface internal dataFeed;
-      constructor(uint256 _locktime) {
+      AggregatorV3Interface public dataFeed;
+      constructor(uint256 _locktime ,address dataFeedaddr) {
         //sepolia sestnet
-    dataFeed = AggregatorV3Interface(0x694AA1769357215DE4FAC081bf1f309aDC325306);
+    dataFeed = AggregatorV3Interface(dataFeedaddr);
     owner=msg.sender;
     deploymentTimestamp=block.timestamp;
     locktime=_locktime;
@@ -54,6 +56,7 @@ contract FundMe{
     (bool success,)=payable(msg.sender).call{value:amount}("");
     require(success,"reansfer tx failed");
     getFundSuccess=true;
+    emit FundWithdrawByOwner(amount);
   }
     function reFund() external windowclsed{
         require(FundersToAmount[msg.sender]!=0,"there is no fund for you");
@@ -62,6 +65,7 @@ contract FundMe{
         FundersToAmount[msg.sender]=0;
         (bool success,)=payable(msg.sender).call{value:refunAmount}("");
         require(success,"transfer th failed");
+        emit reFundByfunder(msg.sender,refunAmount);
     }
     function setFunderToamount(address funder,uint256 _amountupdata)external {
         require(msg.sender==ERC20Addr,"you do have permisstion to call this function");
